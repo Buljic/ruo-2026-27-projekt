@@ -1,0 +1,14 @@
+# Jednokratna priprema hosta (upisi svoju lozinku jednom).
+# Dozvoljava sudo bez lozinke SAMO za nft i sysctl (dvije naredbe koje host ruter trazi).
+# Pokreni u svom terminalu:
+
+echo 'imadbuljic ALL=(root) NOPASSWD: /usr/bin/nft, /usr/bin/sysctl' | sudo tee /etc/sudoers.d/ruo-projekt
+sudo chmod 440 /etc/sudoers.d/ruo-projekt
+sudo visudo -c
+
+# Provjera (bez lozinke, treba ispisati "nftables v..." i "net.ipv4.ip_forward = 1"):
+#   sudo -n /usr/bin/nft --version
+#   sudo -n /usr/bin/sysctl -w net.ipv4.ip_forward=1
+#
+# Uklanjanje dozvole (kad projekt vise ne treba):
+#   sudo rm /etc/sudoers.d/ruo-projekt

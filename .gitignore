@@ -1,0 +1,31 @@
+# Terraform stanje (AO-3: state nije u Gitu)
+**/.terraform/*
+**/*.tfstate
+**/*.tfstate.*
+**/tfplan
+**/.terraform.lock.hcl
+
+# Tajne (AO-9)
+.tajne/
+ansible/.vault_pass
+**/vault.yml
+!**/vault.yml.example
+**/.env
+
+# Generisano
+ansible/inventory.ini
+ansible/generated/
+
+# VM diskovi i slike
+*.qcow2
+*.iso
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Ostalo
+*.tmp
+.DS_Store
