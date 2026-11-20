@@ -1,0 +1,15 @@
+#cloud-config
+# AO-4: pocetna konfiguracija VM-a. Upravljacki korisnik sa SSH kljucem,
+# prijava lozinkom onemogucena. Sve ostalo radi Ansible.
+hostname: ${hostname}
+fqdn: ${hostname}.${domena}
+prefer_fqdn_over_hostname: false
+users:
+  - name: student
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: true
+    ssh_authorized_keys:
+      - ${ssh_key}
+ssh_pwauth: false
+package_update: false

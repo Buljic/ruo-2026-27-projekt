@@ -1,0 +1,28 @@
+version: 2
+# eth0 = NAT ravan (admin/internet), eth1 = segment (data ravan, ako postoji).
+# Kartice se razlikuju po MAC adresi (deterministicki ih postavlja Terraform).
+# Segment ima rute do druga dva segmenta preko hosta (.1 svog segmenta);
+# tako saobracaj izmedju slojeva ide data ravni, nikad kroz NAT.
+ethernets:
+  eth0:
+    match:
+      macaddress: "${mac_nat}"
+    dhcp4: false
+    addresses: [${nat_ip}/24]
+    routes:
+      - to: default
+        via: ${gateway}
+    nameservers:
+      addresses: [${dns}]
+%{ if seg_ip != "" ~}
+  eth1:
+    match:
+      macaddress: "${mac_seg}"
+    dhcp4: false
+    addresses: [${seg_ip}/24]
+    routes:
+%{ for r in seg_routes ~}
+      - to: ${r}
+        via: ${seg_gw}
+%{ endfor ~}
+%{ endif ~}
