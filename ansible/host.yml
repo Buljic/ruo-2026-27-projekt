@@ -1,0 +1,23 @@
+# host.yml: host je ruter izmedju segmenata.
+# Dvije naredbe koje traze root (nft, sysctl) idu kroz sudo -n; sudoers dozvoljava
+# NOPASSWD samo za te dvije komande, pa nema lozinke pri pokretanju.
+# Instalacija sudoers pravila je jednokratna i opisana u README (scripts/sudoers-zahtjev.txt).
+- name: Host ruter (ip_forward i nftables za segmente)
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: IP forwarding (vec je 1 zbog libvirt NAT mreze; osiguravamo)
+      ansible.builtin.command: sudo -n /usr/bin/sysctl -w net.ipv4.ip_forward=1
+      register: sysctl_out
+      changed_when: "' = 1' in sysctl_out.stdout"
+
+    - name: pravila za segmente generisana iz sablona
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/host/ruter.nft.j2"
+        dest: /tmp/ruo-ruter.nft
+        mode: "0644"
+
+    - name: pravila primijenjena (nft -f)
+      ansible.builtin.command: sudo -n /usr/bin/nft -f /tmp/ruo-ruter.nft
+      changed_when: true

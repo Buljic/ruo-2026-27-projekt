@@ -1,0 +1,13 @@
+# app segment: backend prima samo iz web segmenta (frontend). Admin za provjere.
+fw_ulazi:
+  - dport: 8000
+    proto: tcp
+    from: ["{{ seg.web }}", "{{ admin_ip }}/32", "192.168.20.1/32"]
+    iif: eth1
+  - dport: 8000
+    proto: tcp
+    from: ["{{ admin_ip }}/32"]
+    iif: eth0
+
+seg_gw: 192.168.20.1
+seg_rute: [192.168.10.0/24, 192.168.30.0/24]

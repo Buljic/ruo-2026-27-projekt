@@ -1,0 +1,17 @@
+# common: zajednicka priprema VM-ova (agent, osnovni alati).
+
+- name: osnovni paketi
+  ansible.builtin.apt:
+    name: [qemu-guest-agent, curl, ca-certificates, dnsutils, netcat-openbsd]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: guest agent radi
+  ansible.builtin.service:
+    name: qemu-guest-agent
+    state: started
+    enabled: true
+
+- name: rute segmenta (ako postoje)
+  ansible.builtin.include_tasks: rute.yml

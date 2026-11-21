@@ -1,0 +1,2 @@
+- name: reload firewall
+  ansible.builtin.command: nft -f /etc/nftables.conf

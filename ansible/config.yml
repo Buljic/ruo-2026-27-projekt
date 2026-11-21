@@ -1,0 +1,33 @@
+# config.yml: osnovna konfiguracija VM-ova (host ruter je u host.yml).
+- name: Zajednicka priprema VM-ova
+  hosts: all
+  become: true
+  gather_facts: false
+  pre_tasks:
+    - name: cekaj da SSH postane dostupan
+      ansible.builtin.wait_for_connection: { timeout: 300 }
+    - name: cekaj da cloud-init zavrsi
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+    - name: prikupi cinjenice
+      ansible.builtin.setup:
+  roles:
+    - common
+
+- name: "DNS server (BIND): autoritativna zona projekt.lab"
+  hosts: dns
+  become: true
+  roles:
+    - dns
+
+- name: Vatrozid na svim VM-ovima (nftables iz podataka)
+  hosts: all
+  become: true
+  roles:
+    - firewall
+
+- name: Docker na svim VM-ovima
+  hosts: all
+  become: true
+  roles:
+    - docker

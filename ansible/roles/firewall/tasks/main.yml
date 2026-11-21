@@ -1,0 +1,23 @@
+# firewall: nftables iz podataka. Pravila po VM-u dolaze iz group_vars (fw_ulazi).
+# Politika: drop na input; ssh samo s admin racunara, ostalo po segmentu.
+
+- name: nftables je instaliran
+  ansible.builtin.apt:
+    name: nftables
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: pravila iz sablona (provjera sintakse prije zamjene)
+  ansible.builtin.template:
+    src: ruo.nft.j2
+    dest: /etc/nftables.conf
+    mode: "0644"
+    validate: nft -c -f %s
+  notify: reload firewall
+
+- name: nftables servis radi
+  ansible.builtin.service:
+    name: nftables
+    state: started
+    enabled: true

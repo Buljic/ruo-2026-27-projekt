@@ -1,0 +1,14 @@
+# docker: engine + compose plugin na svim VM-ovima.
+
+- name: docker i compose plugin
+  ansible.builtin.apt:
+    name: [docker.io, docker-compose-v2]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: docker servis radi
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true

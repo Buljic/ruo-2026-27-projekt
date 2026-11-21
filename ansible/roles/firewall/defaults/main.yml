@@ -1,0 +1,2 @@
+# default: nikakvi servisni portovi (firewall role faila lijepo ako skup prazno pravilo)
+fw_ulazi: []

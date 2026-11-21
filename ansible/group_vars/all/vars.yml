@@ -1,0 +1,30 @@
+# Zajednicke postavke projekta (nije tajno). Tajne su u vault.yml (sifrovano).
+
+domena: projekt.lab
+admin_ip: 192.168.111.1        # host na NAT ravni (SSH, administracija)
+nat_mreza: 192.168.111.0/24
+
+# plan adresiranja (DO-3): segmente i adrese VM-ova definise Terraform; ovdje su
+# za vatrozid i provjere. Komponente se medjusobno zovu DNS imenima (AO-7).
+seg:
+  web: 192.168.10.0/24
+  app: 192.168.20.0/24
+  db: 192.168.30.0/24
+
+srv:
+  web:      192.168.111.21     # NAT (javni ulaz: frontend :80)
+  app:      192.168.111.22     # NAT (admin/SSH)
+  db:       192.168.111.14     # NAT (admin/SSH)
+  dns:      192.168.111.11     # NAT (BIND)
+  llm:      192.168.111.23     # NAT (admin/SSH)
+  frontend: 192.168.10.11      # segment web
+  backend:  192.168.20.11      # segment app
+  baza:     192.168.30.11      # segment db
+  llmseg:   -                   # llm je na admin ravni
+
+# imena servisa u zoni (AO-7): komponente koriste ova imena, nikad IP adrese
+imena:
+  frontend: frontend.projekt.lab
+  backend: backend.projekt.lab
+  baza: baza.projekt.lab
+  llm: llm.projekt.lab

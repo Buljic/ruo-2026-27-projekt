@@ -1,0 +1,30 @@
+#!/usr/sbin/nft -f
+# Vatrozid VM-a. Generise Ansible iz group_vars/<grupa>/vars.yml.
+# Politika: sve ulazno odbijeno osim eksplicitno dozvoljenog. Pravila su po
+# interfejsu: eth0 = NAT (admin/internet), eth1 = segment (data ravan).
+flush ruleset
+table inet filter {
+  chain input {
+    type filter hook input priority 0; policy drop;
+
+    iif "lo" accept
+    ct state established,related accept
+    ct state invalid drop
+    ip saddr {{ admin_ip }} ip protocol icmp accept
+    ip saddr 192.168.10.1 ip protocol icmp accept
+    ip saddr 192.168.20.1 ip protocol icmp accept
+    ip saddr 192.168.30.1 ip protocol icmp accept
+
+    # SSH samo s admin racunara (NAT ravan)
+    ip saddr {{ admin_ip }} tcp dport 22 accept
+
+{% for u in fw_ulazi | default([]) %}
+    {% for s in u.from %}
+    ip saddr {{ s }} {{ u.proto }} dport {{ u.dport }} accept
+    {% endfor %}
+{% endfor %}
+
+    # sve ostalo pada (policy drop), broji se za dokaz u testovima
+    counter comment "odbijeno"
+  }
+}

@@ -1,0 +1,13 @@
+; Zona projekt.lab: SOA i NS. Servisne zapise (frontend, backend, baza, llm)
+; dodaje Terraform kroz RFC 2136 UPDATE (terraform/dns), potpisano TSIG kljucem.
+$TTL 300
+$ORIGIN projekt.lab.
+@         IN SOA  ns1.projekt.lab. hostmaster.projekt.lab. (
+                  2026112501 ; serial
+                  3600       ; refresh
+                  600        ; retry
+                  1209600    ; expire
+                  300 )      ; negativni TTL
+
+@         IN NS     ns1
+ns1       IN A      192.168.111.11

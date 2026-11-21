@@ -1,0 +1,19 @@
+options {
+  directory "/var/cache/bind";
+  listen-on { 192.168.111.11; 127.0.0.1; };
+  listen-on-v6 { none; };
+  pid-file "/run/named/named.pid";
+  session-keyfile "/run/named/session.key";
+
+  // autoritativno za projekt.lab; rekurzija za lab mreze, vanjski svijet ide
+  // preko libvirt gatewaya (resolver hosta) - radi i kad je vanjski DNS blokiran
+  recursion yes;
+  allow-recursion { 192.168.111.0/24; 192.168.10.0/24; 192.168.20.0/24; 192.168.30.0/24; 127.0.0.1; };
+  allow-query { any; };
+  forwarders { 192.168.111.1; };
+  forward only;
+
+  allow-transfer { none; };
+  notify no;
+  dnssec-validation no;
+};

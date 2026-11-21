@@ -1,0 +1,6 @@
+# Primjer strukture vault.yml. Pravi ga scripts/generate_keys.sh i sifrira ansible-vaultom.
+# U Git ide samo ovaj example, nikad pravi vault.yml ni .vault_pass.
+
+db_lozinka: "PROMJENI"
+tsig_tajne:
+  ruo_tf: "PROMJENI"

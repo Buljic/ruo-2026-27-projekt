@@ -1,0 +1,5 @@
+# rute do drugih segmenata preko hosta (idempotentno; cloud-init ih postavlja na prvom bootu)
+- name: rute do drugih segmenata
+  ansible.builtin.command: ip route replace {{ item }} via {{ seg_gw }}
+  loop: "{{ seg_rute | default([]) }}"
+  changed_when: false

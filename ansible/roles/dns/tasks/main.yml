@@ -1,0 +1,57 @@
+# dns: BIND, autoritativna zona projekt.lab. Servisni zapisi (frontend, backend,
+# baza, llm) su Terraform resursi (terraform/dns, RFC 2136); ova rola postavlja
+# server, zonu (SOA/NS) i TSIG kljuc koji smije mijenjati samo ovu zonu (AO-8).
+
+- name: bind9 je instaliran
+  ansible.builtin.apt:
+    name: [bind9, bind9-utils, dnsutils]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: direktoriji
+  ansible.builtin.file: { path: "{{ item }}", state: directory, owner: root, group: bind, mode: "0755" }
+  loop: [/etc/bind/keys, /etc/bind/zones]
+
+- name: TSIG kljuc (iz vaulta, nije u Gitu)
+  ansible.builtin.template:
+    src: tsig.conf.j2
+    dest: /etc/bind/keys/tsig.conf
+    owner: root
+    group: bind
+    mode: "0640"
+  no_log: true
+  notify: restart bind9
+
+- name: opcije BIND-a
+  ansible.builtin.template:
+    src: named.conf.options.j2
+    dest: /etc/bind/named.conf.options
+    mode: "0644"
+    validate: named-checkconf %s
+  notify: restart bind9
+
+- name: zona i politika izmjena
+  ansible.builtin.template:
+    src: named.conf.local.j2
+    dest: /etc/bind/named.conf.local
+    mode: "0644"
+    validate: named-checkconf %s
+  notify: restart bind9
+
+- name: staticka zona (SOA i NS; servisne zapise dodaje Terraform)
+  ansible.builtin.copy:
+    src: db.projekt.lab
+    dest: /var/lib/bind/db.projekt.lab
+    owner: bind
+    group: bind
+    mode: "0644"
+    validate: named-checkzone projekt.lab %s
+    force: false   # BIND upisuje servisne zapise u zonu; ne pregazi ih pri ponovnom pokretanju
+  notify: restart bind9
+
+- name: bind9 servis radi
+  ansible.builtin.service:
+    name: bind9
+    state: started
+    enabled: true

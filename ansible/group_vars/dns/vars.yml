@@ -1,0 +1,10 @@
+# dns VM: BIND prima upite iz NAT ravni (svi VM-ovi i host).
+fw_ulazi:
+  - dport: 53
+    proto: udp
+    from: ["{{ nat_mreza }}"]
+    iif: eth0
+  - dport: 53
+    proto: tcp
+    from: ["{{ nat_mreza }}"]
+    iif: eth0

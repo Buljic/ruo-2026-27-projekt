@@ -1,0 +1,22 @@
+# Host ruter: propusta samo frontend->backend (8000) i backend->baza (5432).
+# Frontend nema put do baze (AO-6). Politika je accept da libvirt NAT nastavi raditi;
+# zabranjeni tokovi se eksplicitno odbijaju.
+table inet segmenti {
+  chain forward {
+    type filter hook forward priority 0; policy accept;
+
+    ct state established,related accept
+
+    # dozvoljeni tokovi izmedju segmenata
+    iifname "br-web" oifname "br-app" tcp dport 8000 accept
+    iifname "br-app" oifname "br-db" tcp dport 5432 accept
+
+    # sve ostalo izmedju segmenata se odbija (frontend -> baza posebno)
+    iifname "br-web" oifname "br-app" drop
+    iifname "br-app" oifname "br-web" drop
+    iifname "br-web" oifname "br-db" drop
+    iifname "br-db" oifname "br-web" drop
+    iifname "br-app" oifname "br-db" drop
+    iifname "br-db" oifname "br-app" drop
+  }
+}

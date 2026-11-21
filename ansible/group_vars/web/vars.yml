@@ -1,0 +1,9 @@
+# web segment: frontend je jedini javni ulaz (port 80).
+fw_ulazi:
+  - dport: 80
+    proto: tcp
+    from: ["0.0.0.0/0"]
+    iif: eth0
+
+seg_gw: 192.168.10.1
+seg_rute: [192.168.20.0/24, 192.168.30.0/24]

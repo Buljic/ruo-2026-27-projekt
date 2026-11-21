@@ -1,0 +1,9 @@
+// TSIG kljuc ruo-tf: jedini kljuc koji mijenja zonu projekt.lab (AO-8).
+include "/etc/bind/keys/tsig.conf";
+
+zone "projekt.lab" {
+  type primary;
+  file "/var/lib/bind/db.projekt.lab";
+  // samo ova zona, samo s ovim kljucem (najmanja potrebna prava)
+  update-policy { grant ruo-tf zonesub ANY; };
+};
