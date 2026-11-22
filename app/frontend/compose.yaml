@@ -1,0 +1,6 @@
+services:
+  frontend:
+    build: .
+    image: ruo/frontend:1.0
+    network_mode: host
+    restart: unless-stopped

@@ -1,0 +1,14 @@
+services:
+  db:
+    image: postgres:16-alpine
+    network_mode: host
+    env_file: .env
+    # slusa SAMO na segment adresi; nema porta na NAT ravni (AO-6)
+    command: ["postgres", "-c", "listen_addresses=${DB_LISTEN}"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sh:/docker-entrypoint-initdb.d/init.sh:ro
+    restart: unless-stopped
+
+volumes:
+  pgdata:

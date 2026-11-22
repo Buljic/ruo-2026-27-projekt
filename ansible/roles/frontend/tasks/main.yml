@@ -1,0 +1,11 @@
+# frontend: nginx kontejner na web VM-u, javni ulaz (port 80).
+
+- name: aplikacija na /opt/ruo/frontend
+  ansible.builtin.copy:
+    src: ../../../../app/frontend/
+    dest: /opt/ruo/frontend/
+    mode: "0644"
+
+- name: frontend kontejner radi
+  ansible.builtin.command: docker compose -f /opt/ruo/frontend/compose.yaml up -d --build
+  changed_when: false

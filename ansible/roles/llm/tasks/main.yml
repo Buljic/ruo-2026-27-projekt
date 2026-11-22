@@ -1,0 +1,91 @@
+# llm: vLLM (CPU build iz izvora) servira mali model koji igra Tetris.
+# Standardni PyPI wheel je CUDA-only; CPU build se kompajlira iz izvora
+# (vidi docs/LLM.md). Web backendovi zovu http://llm.projekt.lab:8000/v1/chat/completions.
+
+- name: build zavisnosti (kompilacija CPU kernela)
+  ansible.builtin.apt:
+    name: [git, cmake, ninja-build, g++, libnuma-dev, python3-dev, python3-venv]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: swapfile 8G (kompilacija na 10 GB RAM-a trazi prostora)
+  ansible.builtin.shell: |
+    set -e
+    fallocate -l 8G /swapfile
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+    swapon /swapfile
+  args: { creates: /swapfile }
+
+- name: venv za vLLM
+  ansible.builtin.command: python3 -m venv /opt/vllm-venv
+  args: { creates: /opt/vllm-venv/bin/python }
+
+- name: izvorni kod vLLM-a (shallow clone)
+  ansible.builtin.command: git clone --depth 1 https://github.com/vllm-project/vllm.git /opt/vllm-src
+  args: { creates: /opt/vllm-src/setup.py }
+
+- name: cpu requirements (triton-cpu i ostalo)
+  ansible.builtin.pip:
+    requirements: /opt/vllm-src/requirements/cpu.txt
+    virtualenv: /opt/vllm-venv
+
+- name: je li vec instaliran CPU build?
+  ansible.builtin.command: /opt/vllm-venv/bin/python -c "from vllm.platforms import current_platform; print(current_platform.device_type)"
+  register: vllm_platform
+  changed_when: false
+  failed_when: false
+
+- name: "vLLM CPU build iz izvora (dugo: 20-40 min)"
+  ansible.builtin.command: /opt/vllm-venv/bin/pip install . --no-build-isolation
+  args: { chdir: /opt/vllm-src }
+  environment:
+    VLLM_TARGET_DEVICE: cpu
+    MAX_JOBS: "4"
+  when: vllm_platform.stdout != "cpu"
+  register: vllm_build
+  changed_when: vllm_build.rc == 0 and vllm_platform.stdout != "cpu"
+
+- name: vLLM je instaliran (provjera)
+  ansible.builtin.command: /opt/vllm-venv/bin/python -c "from vllm.platforms import current_platform; print(current_platform.device_type)"
+  register: vllm_check
+  changed_when: false
+  failed_when: vllm_check.stdout != "cpu"
+
+- name: preuzmi model u HF cache (jednom)
+  ansible.builtin.command: /opt/vllm-venv/bin/hf download {{ llm_model }}
+  environment:
+    HF_HOME: /opt/hf
+  args: { creates: /opt/hf/hub/models--Qwen--Qwen2.5-0.5B-Instruct }
+  register: model_dl
+  changed_when: model_dl.changed
+
+- name: systemd jedinica za vLLM
+  ansible.builtin.template:
+    src: vllm.service.j2
+    dest: /etc/systemd/system/vllm.service
+    mode: "0644"
+  notify:
+    - systemd reload
+    - restart vllm
+
+- name: vLLM servis radi
+  ansible.builtin.service:
+    name: vllm
+    state: started
+    enabled: true
+
+- name: primijeni restart prije cekanja
+  ansible.builtin.meta: flush_handlers
+
+- name: cekaj da vLLM bude spreman (prvi start ucitava model)
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8000/health
+    method: GET
+    status_code: 200
+  register: vllm_health
+  until: vllm_health.status == 200
+  retries: 40
+  delay: 15
+  changed_when: false

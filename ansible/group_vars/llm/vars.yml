@@ -1,0 +1,6 @@
+# llm VM (interna zavisnost backenda, na admin/NAT ravni): vLLM prima samo
+# sa app VM-a (backend) i admina. U produkciji bi bio u app segmentu.
+fw_ulazi:
+  - dport: 8000
+    proto: tcp
+    from: ["{{ srv.app }}/32", "{{ seg.app }}", "{{ admin_ip }}/32"]

@@ -1,0 +1,2 @@
+# vLLM: mali model na CPU (demo). U produkciji: GPU + veci model (npr. 7B), dtype bfloat16.
+llm_model: Qwen/Qwen2.5-0.5B-Instruct

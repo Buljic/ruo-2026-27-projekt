@@ -1,0 +1,23 @@
+# backend: FastAPI kontejner na app VM-u. Baza i LLM se zovu DNS imenima (AO-7).
+
+- name: aplikacija na /opt/ruo/backend
+  ansible.builtin.copy:
+    src: ../../../../app/backend/
+    dest: /opt/ruo/backend/
+    mode: "0644"
+
+- name: ".env sa lozinkom baze (iz vaulta, nije u Gitu)"
+  ansible.builtin.copy:
+    content: |
+      DB_HOST={{ imena.baza }}
+      DB_NAME=igra
+      DB_USER=app
+      DB_PASSWORD={{ db_lozinka }}
+      LLM_URL=http://{{ imena.llm }}:8000
+    dest: /opt/ruo/backend/.env
+    mode: "0600"
+  no_log: true
+
+- name: backend kontejner radi
+  ansible.builtin.command: docker compose -f /opt/ruo/backend/compose.yaml up -d --build
+  changed_when: false

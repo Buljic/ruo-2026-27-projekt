@@ -1,0 +1,7 @@
+services:
+  backend:
+    build: .
+    image: ruo/backend:1.0
+    network_mode: host
+    env_file: .env
+    restart: unless-stopped

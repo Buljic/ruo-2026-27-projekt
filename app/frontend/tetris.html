@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="bs">
+<head>
+<meta charset="utf-8">
+<title>RuO Tetris - igra LLM</title>
+<style>
+  body { background:#0f172a; color:#e2e8f0; font-family:system-ui,monospace; display:flex; gap:24px; justify-content:center; padding:24px; }
+  canvas { background:#020617; border:2px solid #334155; border-radius:6px; }
+  h1 { font-size:1.4rem; margin:0 0 12px; color:#7dd3fc; }
+  .panel { width:300px; }
+  .karta { background:#1e293b; border-radius:8px; padding:12px; margin-bottom:12px; }
+  .karta h2 { font-size:.85rem; margin:0 0 8px; color:#94a3b8; text-transform:uppercase; letter-spacing:.05em; }
+  #odgovor { font-size:.75rem; color:#a5b4fc; word-break:break-all; max-height:120px; overflow:auto; }
+  button { background:#0284c7; color:#fff; border:0; border-radius:6px; padding:8px 14px; cursor:pointer; font-size:.9rem; }
+  button.ugasen { background:#475569; }
+  table { width:100%; font-size:.85rem; border-collapse:collapse; }
+  td { padding:2px 4px; }
+  .meta { font-size:.75rem; color:#64748b; }
+</style>
+</head>
+<body>
+<div>
+  <h1>Tetris - igra LLM</h1>
+  <canvas id="ploca" width="200" height="400"></canvas>
+</div>
+<div class="panel">
+  <div class="karta">
+    <h2>Upravljanje</h2>
+    <button id="auto">LLM igra: UKLJUCENO</button>
+    <p class="meta">Strelice + razmak igraju rucno. Enter prebacuje LLM/rucno.</p>
+    <p class="meta">Bodovi: <b id="bodovi">0</b> &nbsp; Nivo: <b id="nivo">1</b></p>
+    <p class="meta">Backend: <b id="backend">?</b> (vidi se balansiranje)</p>
+  </div>
+  <div class="karta">
+    <h2>LLM odgovor (sirov)</h2>
+    <div id="odgovor">-</div>
+  </div>
+  <div class="karta">
+    <h2>Top 5 (iz Redisa)</h2>
+    <table id="top"></table>
+    <p class="meta">Odranih igara: <span id="posjete">?</span></p>
+  </div>
+</div>
+<script>
+const COLS=10, ROWS=20, CELL=20;
+const cv=document.getElementById('ploca'), ctx=cv.getContext('2d');
+const BOJE={I:'#22d3ee',O:'#facc15',T:'#c084fc',S:'#4ade80',Z:'#f87171',J:'#60a5fa',L:'#fb923c'};
+const OBLICI={I:[[1,1,1,1]],O:[[1,1],[1,1]],T:[[0,1,0],[1,1,1]],S:[[0,1,1],[1,1,0]],Z:[[1,1,0],[0,1,1]],J:[[1,0,0],[1,1,1]],L:[[0,0,1],[1,1,1]]};
+let ploca,bodovi,level,komad,x,y,rot,auto=true,timer=null,ubrzano=0;
+
+function novaPloca(){ return Array.from({length:ROWS},()=>Array(COLS).fill(0)); }
+function rotiraj(o){ return o[0].map((_,i)=>o.map(r=>r[i]).reverse()); }
+function oblik(){ let o=OBLICI[komad]; for(let i=0;i<rot%4;i++) o=rotiraj(o); return o; }
+function slobodno(o,px,py){
+  for(let r=0;r<o.length;r++) for(let c=0;c<o[r].length;c++){
+    if(!o[r][c]) continue;
+    const nx=px+c, ny=py+r;
+    if(nx<0||nx>=COLS||ny>=ROWS) return false;
+    if(ny>=0 && ploca[ny][nx]) return false;
+  }
+  return true;
+}
+function novoKomad(){
+  const kljuc=Object.keys(OBLICI)[Math.floor(Math.random()*7)];
+  komad=kljuc; rot=0; x=3; y=0;
+  if(!slobodno(oblik(),x,y)) gameOver();
+}
+function slijedi(){
+  const o=oblik();
+  if(slobodno(o,x,y+1)){ y++; }
+  else {
+    for(let r=0;r<o.length;r++) for(let c=0;c<o[r].length;c++)
+      if(o[r][c] && y+r>=0) ploca[y+r][x+c]=komad;
+    ocisti(); novoKomad();
+  }
+}
+function ocisti(){
+  let n=0;
+  ploca=ploca.filter(red=>{ if(red.every(c=>c)){ n++; return false; } return true; });
+  while(ploca.length<ROWS) ploca.unshift(Array(COLS).fill(0));
+  if(n){ bodovi+=n*n*100; level=1+Math.floor(bodovi/1000); document.getElementById('bodovi').textContent=bodovi; document.getElementById('nivo').textContent=level; }
+}
+function padni(){
+  while(slobodno(oblik(),x,y+1)) y++;
+  slijedi();
+}
+function potez(m){
+  const o=oblik();
+  if(m==='lijevo' && slobodno(o,x-1,y)) x--;
+  else if(m==='desno' && slobodno(o,x+1,y)) x++;
+  else if(m==='rotiraj' && slobodno(rotiraj(o),x,y)) rot=(rot+1)%4;
+  else if(m==='pad'){ padni(); }
+  else if(m==='dolje'){ slijedi(); }
+}
+async function gameOver(){
+  clearInterval(timer); timer=null;
+  await fetch('/api/kraj',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bodovi,ime:prompt('Kraj! Ime za rang listu?','anon')||'anon'})});
+  osvjeziTop();
+  alert('Kraj igre! Bodovi: '+bodovi);
+  start();
+}
+function crtaj(){
+  ctx.clearRect(0,0,200,400);
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    if(ploca[r][c]){ ctx.fillStyle=BOJE[ploca[r][c]]; ctx.fillRect(c*CELL,r*CELL,CELL-1,CELL-1); }
+  }
+  const o=oblik();
+  ctx.fillStyle=BOJE[komad];
+  for(let r=0;r<o.length;r++) for(let c=0;c<o[r].length;c++)
+    if(o[r][c]) ctx.fillRect((x+c)*CELL,(y+r)*CELL,CELL-1,CELL-1);
+  ctx.strokeStyle='#1e293b';
+  for(let i=0;i<=COLS;i++){ ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,400); ctx.stroke(); }
+  for(let i=0;i<=ROWS;i++){ ctx.beginPath(); ctx.moveTo(0,i*CELL); ctx.lineTo(200,i*CELL); ctx.stroke(); }
+}
+async function llmPotez(){
+  try{
+    const o=oblik();
+    const resp=await fetch('/api/potez',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ploca,komad,x,rotacija:rot})});
+    const d=await resp.json();
+    document.getElementById('odgovor').textContent=d.llm+' ['+d.potez+']';
+    document.getElementById('backend').textContent=d.backend;
+    return d.potez;
+  }catch(e){ return 'ostani'; }
+}
+async function tik(){
+  if(auto){ potez(await llmPotez()); } else { slijedi(); }
+  crtaj();
+}
+function osvjeziTop(){
+  fetch('/api/top').then(r=>r.json()).then(d=>{
+    document.getElementById('posjete').textContent=d.igara;
+    const t=document.getElementById('top');
+    t.replaceChildren(...d.top.map(x=>{
+      const tr=document.createElement('tr');
+      const a=document.createElement('td'); a.textContent=x.ime;
+      const b=document.createElement('td'); b.style.textAlign='right'; b.textContent=x.bodovi;
+      tr.append(a,b); return tr;
+    }));
+  }).catch(()=>{ document.getElementById('top').innerHTML='<tr><td class="meta">redis nedostupan</td></tr>'; });
+}
+function start(){
+  ploca=novaPloca(); bodovi=0; level=1; novoKomad();
+  document.getElementById('bodovi').textContent=0; document.getElementById('nivo').textContent=1;
+  if(timer) clearInterval(timer);
+  timer=setInterval(tik, 1000);
+  crtaj(); osvjeziTop();
+}
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'){ toggleAuto(); return; }
+  if(auto) return;
+  if(e.key==='ArrowLeft') potez('lijevo');
+  else if(e.key==='ArrowRight') potez('desno');
+  else if(e.key==='ArrowUp') potez('rotiraj');
+  else if(e.key==='ArrowDown') potez('dolje');
+  else if(e.key===' ') potez('pad');
+  crtaj();
+});
+function toggleAuto(){
+  auto=!auto;
+  const b=document.getElementById('auto');
+  b.textContent='LLM igra: '+(auto?'UKLJUCENO':'ISKLIUCENO (rucno)');
+  b.className=auto?'':'ugasen';
+}
+document.getElementById('auto').onclick=toggleAuto;
+start();
+</script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+# db: PostgreSQL kontejner na db VM-u. Volume cuva podatke (AO-10);
+# slusa samo na segment adresi, bez porta na NAT ravni (AO-6).
+
+- name: aplikacija na /opt/ruo/db
+  ansible.builtin.copy:
+    src: ../../../../app/db/
+    dest: /opt/ruo/db/
+    mode: "0644"
+
+- name: ".env sa lozinkama baze (iz vaulta, nije u Gitu)"
+  ansible.builtin.copy:
+    content: |
+      POSTGRES_USER=postgres
+      POSTGRES_PASSWORD={{ db_lozinka }}
+      POSTGRES_DB=igra
+      APP_PASSWORD={{ db_lozinka }}
+      DB_LISTEN={{ srv.baza }}
+    dest: /opt/ruo/db/.env
+    mode: "0600"
+  no_log: true
+
+- name: baza radi (kontejner + volume)
+  ansible.builtin.command: docker compose -f /opt/ruo/db/compose.yaml up -d
+  changed_when: false

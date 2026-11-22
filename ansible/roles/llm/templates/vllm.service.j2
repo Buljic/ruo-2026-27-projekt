@@ -1,0 +1,18 @@
+[Unit]
+Description=vLLM server (Tetris LLM, CPU build)
+After=network.target
+
+[Service]
+Type=simple
+Environment=HF_HOME=/opt/hf
+Environment=VLLM_TARGET_DEVICE=cpu
+ExecStart=/opt/vllm-venv/bin/vllm serve {{ llm_model }} \
+  --port 8000 --max-model-len 2048 --served-model-name tetris \
+  --kv-cache-memory-bytes 2G --max-num-seqs 8
+Restart=always
+RestartSec=5
+User=root
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

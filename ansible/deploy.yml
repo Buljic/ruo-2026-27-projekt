@@ -1,0 +1,27 @@
+# deploy.yml: isporuka i pokretanje kontejnera po slojevima.
+# Tok zahtjeva: frontend -> backend -> baza (AO-1). LLM je interna zavisnost
+# backenda i zivi na admin/NAT ravni (u produkciji bi bio u app segmentu).
+
+- name: LLM server (vLLM) u app segmentu
+  hosts: llm
+  become: true
+  roles:
+    - llm
+
+- name: "Baza (PostgreSQL kontejner + volume)"
+  hosts: db
+  become: true
+  roles:
+    - db
+
+- name: "Backend (FastAPI kontejner)"
+  hosts: app
+  become: true
+  roles:
+    - backend
+
+- name: "Frontend (nginx kontejner)"
+  hosts: web
+  become: true
+  roles:
+    - frontend
