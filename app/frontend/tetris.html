@@ -29,7 +29,7 @@
     <button id="auto">LLM igra: UKLJUCENO</button>
     <p class="meta">Strelice + razmak igraju rucno. Enter prebacuje LLM/rucno.</p>
     <p class="meta">Bodovi: <b id="bodovi">0</b> &nbsp; Nivo: <b id="nivo">1</b></p>
-    <p class="meta">Backend: <b id="backend">?</b> (vidi se balansiranje)</p>
+    <p class="meta">Backend: <b id="backend">?</b></p>
   </div>
   <div class="karta">
     <h2>LLM odgovor (sirov)</h2>
@@ -46,7 +46,7 @@ const COLS=10, ROWS=20, CELL=20;
 const cv=document.getElementById('ploca'), ctx=cv.getContext('2d');
 const BOJE={I:'#22d3ee',O:'#facc15',T:'#c084fc',S:'#4ade80',Z:'#f87171',J:'#60a5fa',L:'#fb923c'};
 const OBLICI={I:[[1,1,1,1]],O:[[1,1],[1,1]],T:[[0,1,0],[1,1,1]],S:[[0,1,1],[1,1,0]],Z:[[1,1,0],[0,1,1]],J:[[1,0,0],[1,1,1]],L:[[0,0,1],[1,1,1]]};
-let ploca,bodovi,level,komad,x,y,rot,auto=true,timer=null,ubrzano=0;
+let ploca,bodovi,level,komad,x,y,rot,auto=true,timer=null,ubrzano=0,cilj=null,figuraId=0,kraj=false;
 
 function novaPloca(){ return Array.from({length:ROWS},()=>Array(COLS).fill(0)); }
 function rotiraj(o){ return o[0].map((_,i)=>o.map(r=>r[i]).reverse()); }
@@ -62,7 +62,8 @@ function slobodno(o,px,py){
 }
 function novoKomad(){
   const kljuc=Object.keys(OBLICI)[Math.floor(Math.random()*7)];
-  komad=kljuc; rot=0; x=3; y=0;
+  komad=kljuc; rot=0; x=3; y=0; tikovi=0; cilj=null; figuraId++;
+  dohvatiPlan(figuraId);   // cilj za OVU figuru, jednom (nema zahtjeva u letu)
   if(!slobodno(oblik(),x,y)) gameOver();
 }
 function slijedi(){
@@ -88,12 +89,18 @@ function potez(m){
   const o=oblik();
   if(m==='lijevo' && slobodno(o,x-1,y)) x--;
   else if(m==='desno' && slobodno(o,x+1,y)) x++;
-  else if(m==='rotiraj' && slobodno(rotiraj(o),x,y)) rot=(rot+1)%4;
+  else if(m==='rotiraj'){
+    // zidni kick: probaj u mjestu, pa jedan korak lijevo/desno
+    if(slobodno(rotiraj(o),x,y)) rot=(rot+1)%4;
+    else if(slobodno(rotiraj(o),x-1,y)){ x--; rot=(rot+1)%4; }
+    else if(slobodno(rotiraj(o),x+1,y)){ x++; rot=(rot+1)%4; }
+  }
   else if(m==='pad'){ padni(); }
   else if(m==='dolje'){ slijedi(); }
 }
 async function gameOver(){
-  clearInterval(timer); timer=null;
+  if(kraj) return;
+  kraj=true; clearInterval(timer); timer=null;
   await fetch('/api/kraj',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({bodovi,ime:prompt('Kraj! Ime za rang listu?','anon')||'anon'})});
   osvjeziTop();
   alert('Kraj igre! Bodovi: '+bodovi);
@@ -112,18 +119,29 @@ function crtaj(){
   for(let i=0;i<=COLS;i++){ ctx.beginPath(); ctx.moveTo(i*CELL,0); ctx.lineTo(i*CELL,400); ctx.stroke(); }
   for(let i=0;i<=ROWS;i++){ ctx.beginPath(); ctx.moveTo(0,i*CELL); ctx.lineTo(200,i*CELL); ctx.stroke(); }
 }
-async function llmPotez(){
+async function dohvatiPlan(id){
   try{
-    const o=oblik();
-    const resp=await fetch('/api/potez',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ploca,komad,x,rotacija:rot})});
+    const resp=await fetch('/api/plan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ploca: ploca.map(r=>r.map(c=>c?1:0)), komad, x, rotacija: rot})});
+    if(!resp.ok){ document.getElementById('odgovor').textContent='LLM greska '+resp.status; return; }
     const d=await resp.json();
-    document.getElementById('odgovor').textContent=d.llm+' ['+d.potez+']';
-    document.getElementById('backend').textContent=d.backend;
-    return d.potez;
-  }catch(e){ return 'ostani'; }
+    if(id!==figuraId || kraj) return;   // figura se promijenila dok je zahtjev bio u letu
+    cilj=d;
+    document.getElementById('odgovor').textContent=(d.llm||'(nema odgovora)')+' -> rot '+(d.cilj_rotacija??'?')+', kol '+(d.cilj_kolona??'?')+(d.izvor?' ('+d.izvor+')':'');
+    document.getElementById('backend').textContent=d.backend||'?';
+  }catch(e){ document.getElementById('odgovor').textContent='LLM nedostupan (heuristika ne radi bez baze?)'; }
 }
-async function tik(){
-  if(auto){ potez(await llmPotez()); } else { slijedi(); }
+let tikovi = 0;
+function tik(){
+  if(kraj) return;
+  if(auto && cilj){
+    if(rot !== (cilj.cilj_rotacija||0)) potez('rotiraj');
+    else if(x < (cilj.cilj_kolona??x)) potez('desno');
+    else if(x > (cilj.cilj_kolona??x)) potez('lijevo');
+    else potez('pad');
+    tikovi++;
+    if(tikovi >= 25){ potez('pad'); tikovi = 0; }  // safeguard
+  }
+  slijedi();   // gravitacija (1 red/s) u oba moda
   crtaj();
 }
 function osvjeziTop(){
@@ -139,6 +157,7 @@ function osvjeziTop(){
   }).catch(()=>{ document.getElementById('top').innerHTML='<tr><td class="meta">redis nedostupan</td></tr>'; });
 }
 function start(){
+  kraj=false; cilj=null;
   ploca=novaPloca(); bodovi=0; level=1; novoKomad();
   document.getElementById('bodovi').textContent=0; document.getElementById('nivo').textContent=1;
   if(timer) clearInterval(timer);

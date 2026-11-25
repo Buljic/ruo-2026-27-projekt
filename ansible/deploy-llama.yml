@@ -1,0 +1,8 @@
+# deploy-llama.yml: ALTERNATIVA za slab laptop bez GPU-a.
+# Zamjenjuje vLLM s llama.cpp serverom na istom portu i istom API-ju;
+# ostali slojevi se ne mijenjaju. Vracanje na vLLM: make deploy.
+- name: LLM preko llama.cpp (CPU, ~3 min build)
+  hosts: llm
+  become: true
+  roles:
+    - llm_llama

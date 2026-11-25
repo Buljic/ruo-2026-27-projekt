@@ -1,0 +1,4 @@
+- name: systemd reload
+  ansible.builtin.systemd: { daemon_reload: true }
+- name: restart llama
+  ansible.builtin.service: { name: llama, state: restarted }

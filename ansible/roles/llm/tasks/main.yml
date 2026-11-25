@@ -26,9 +26,15 @@
   ansible.builtin.command: git clone --depth 1 https://github.com/vllm-project/vllm.git /opt/vllm-src
   args: { creates: /opt/vllm-src/setup.py }
 
-- name: cpu requirements (triton-cpu i ostalo)
+- name: cpu requirements (triton-cpu i ostalo; torch dolazi s PyTorch CPU indeksa)
   ansible.builtin.pip:
     requirements: /opt/vllm-src/requirements/cpu.txt
+    virtualenv: /opt/vllm-venv
+    extra_args: --extra-index-url https://download.pytorch.org/whl/cpu
+
+- name: build alati u venv (setuptools-rust i ostalo za pip install .)
+  ansible.builtin.pip:
+    name: [setuptools-rust, setuptools-scm, setuptools, wheel, cmake, ninja, packaging]
     virtualenv: /opt/vllm-venv
 
 - name: je li vec instaliran CPU build?

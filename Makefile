@@ -8,7 +8,7 @@ ANSIBLE_PLAYBOOK := $(HOME)/Tools/ruo-ansible-venv/bin/ansible-playbook
 TF := terraform
 
 .DEFAULT_GOAL := help
-.PHONY: help check keys infra config dns deploy test all destroy
+.PHONY: help check keys infra config dns deploy deploy-llama test all destroy
 
 help: ## prikazuje ciljeve
 > @grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "  make %-10s %s\n", $$1, $$2}'
@@ -34,6 +34,9 @@ dns: ## Terraform: DNS zapisi servisa kroz RFC 2136 (AO-8)
 
 deploy: ## Ansible: isporuka i pokretanje kontejnera (AO-1)
 > cd ansible && $(ANSIBLE_PLAYBOOK) -i inventory.ini deploy.yml
+
+deploy-llama: ## alternativa za slab laptop: llama.cpp umjesto vLLM (CPU, ~3 min)
+> cd ansible && $(ANSIBLE_PLAYBOOK) -i inventory.ini deploy-llama.yml
 
 test: ## izolacija (AO-6), dig upiti (AO-7), aplikacija (AO-1, AO-10)
 > bash tests/test_izolacija.sh

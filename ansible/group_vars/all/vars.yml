@@ -20,7 +20,6 @@ srv:
   frontend: 192.168.10.11      # segment web
   backend:  192.168.20.11      # segment app
   baza:     192.168.30.11      # segment db
-  llmseg:   -                   # llm je na admin ravni
 
 # imena servisa u zoni (AO-7): komponente koriste ova imena, nikad IP adrese
 imena:

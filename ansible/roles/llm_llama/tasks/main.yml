@@ -1,0 +1,68 @@
+# llm_llama: ALTERNATIVA vLLM-u za slab laptop bez GPU-a (opcija, ne default).
+# llama.cpp se kompajlira ~3 min (vLLM ~25 min) i servira OpenAI-kompatibilan API,
+# pa backend radi bez izmjena. Model: isti Qwen2.5-0.5B-Instruct, GGUF Q4_K_M (~490 MB).
+
+- name: zavisnosti za build
+  ansible.builtin.apt:
+    name: [cmake, g++, make, git, curl]
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: izvorni kod llama.cpp
+  ansible.builtin.command: git clone --depth 1 https://github.com/ggml-org/llama.cpp /opt/llama-src
+  args: { creates: /opt/llama-src/CMakeLists.txt }
+
+- name: cmake konfiguracija
+  ansible.builtin.command: cmake -B build -DLLAMA_CURL=OFF
+  args:
+    chdir: /opt/llama-src
+    creates: /opt/llama-src/build/CMakeCache.txt
+
+- name: "kompilacija llama.cpp (~3 min)"
+  ansible.builtin.command: cmake --build build --config Release -j4
+  args:
+    chdir: /opt/llama-src
+    creates: /opt/llama-src/build/bin/llama-server
+
+- name: model GGUF (Qwen2.5-0.5B-Instruct Q4_K_M)
+  ansible.builtin.get_url:
+    url: https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf
+    dest: /opt/llama/model.gguf
+    mode: "0644"
+    force: false
+
+- name: vLLM se zaustavlja (ova opcija ga zamjenjuje)
+  ansible.builtin.service:
+    name: vllm
+    state: stopped
+    enabled: false
+
+- name: systemd jedinica za llama-server
+  ansible.builtin.template:
+    src: llama.service.j2
+    dest: /etc/systemd/system/llama.service
+    mode: "0644"
+  notify:
+    - systemd reload
+    - restart llama
+
+- name: llama-server radi
+  ansible.builtin.service:
+    name: llama
+    state: started
+    enabled: true
+
+- name: primijeni restart prije cekanja
+  ansible.builtin.meta: flush_handlers
+
+- name: cekaj da llama-server bude spreman
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8000/health
+    method: GET
+    status_code: 200
+  register: llama_health
+  until: llama_health.status == 200
+  retries: 20
+  delay: 5
+  changed_when: false

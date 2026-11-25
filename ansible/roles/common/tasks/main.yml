@@ -1,5 +1,27 @@
 # common: zajednicka priprema VM-ova (agent, osnovni alati).
 
+- name: zaustavi apt pozadinske servise (svjez boot drzi lock)
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - unattended-upgrades.service
+    - apt-daily.service
+    - apt-daily-upgrade.service
+    - apt-daily.timer
+    - apt-daily-upgrade.timer
+  failed_when: false
+
+- name: sacekaj da se apt lock oslobodi
+  ansible.builtin.shell: |
+    for i in $(seq 1 60); do
+      fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || exit 0
+      sleep 2
+    done
+    exit 1
+  changed_when: false
+
 - name: osnovni paketi
   ansible.builtin.apt:
     name: [qemu-guest-agent, curl, ca-certificates, dnsutils, netcat-openbsd]

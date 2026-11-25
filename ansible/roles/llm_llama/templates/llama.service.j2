@@ -1,0 +1,14 @@
+[Unit]
+Description=llama.cpp server (Tetris LLM, CPU)
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/opt/llama-src/build/bin/llama-server --model /opt/llama/model.gguf \
+  --host 0.0.0.0 --port 8000 -c 2048 --alias tetris -t 4 --jinja
+Restart=always
+RestartSec=3
+User=root
+
+[Install]
+WantedBy=multi-user.target
